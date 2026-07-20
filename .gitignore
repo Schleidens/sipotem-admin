@@ -19,7 +19,8 @@ dist-ssr/
 .env.*
 !.env.example
 
-# Firebase credentials (never commit)
+# Firebase
+.firebase/
 firebase-service-account.json
 *-firebase-adminsdk*.json
 serviceAccount*.json
@@ -54,3 +55,6 @@ Thumbs.db
 .cursor/
 .cursorrules
 .cursorignore
+
+# Local tooling
+.tools/

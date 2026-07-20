@@ -21,9 +21,10 @@ This app is the primary staff UI. It talks **only** to Django `/api/admin/` with
 | Bundler | Vite 8 |
 | Router | React Router 7 |
 | Charts | Recharts |
-| Package manager | Yarn |
+| Package manager | npm |
 | Auth | Firebase Auth (same project as `frontend/`) |
 | API | Django REST `/api/admin/` |
+| Hosting | Firebase Hosting (`sipotem-app`) |
 
 ---
 
@@ -34,7 +35,7 @@ This app is the primary staff UI. It talks **only** to Django `/api/admin/` with
 | Backend (API) | `../backend/` | `http://127.0.0.1:8000` |
 | Consumer app | `../frontend/` | `http://localhost:3000` |
 | Realtime | `../ms-realtime/` | `http://localhost:3001` |
-| **This admin SPA** | `.` | `http://localhost:5173` |
+| **This admin SPA** | `.` | Dev: `http://localhost:5173` · Live: https://sipotem-app.web.app |
 
 Add `http://localhost:5173` (and production admin origin) to backend `CORS_ALLOWED_ORIGINS` and `ADMIN_ALLOWED_ORIGINS`.
 
@@ -42,8 +43,7 @@ Add `http://localhost:5173` (and production admin origin) to backend `CORS_ALLOW
 
 ## Prerequisites
 
-- **Node.js** 20+ recommended (Yarn may need `--ignore-engines` on Node 18)
-- **Yarn**
+- **Node.js** 20+ (required for Firebase CLI)
 - Backend running locally with migrations applied
 - A Firebase user that is staff in Django (`is_staff`); production also requires custom claim `admin: true` and MFA
 
@@ -53,10 +53,10 @@ Add `http://localhost:5173` (and production admin origin) to backend `CORS_ALLOW
 
 ```bash
 cd admin-dashboard
-yarn
+npm install
 cp .env.example .env
 # Fill VITE_* values (same Firebase web config as frontend, plus API base URL)
-yarn dev
+npm run dev
 ```
 
 Open the URL Vite prints (usually `http://localhost:5173`).
@@ -85,10 +85,66 @@ Use the **same Firebase project** as `frontend/`. Do **not** put Firebase Admin 
 
 | Script | Command |
 |--------|---------|
-| Dev server | `yarn dev` |
-| Typecheck + production build | `yarn build` |
-| Lint | `yarn lint` |
-| Preview production build | `yarn preview` |
+| Dev server | `npm run dev` |
+| Typecheck + production build | `npm run build` |
+| Lint | `npm run lint` |
+| Preview production build locally | `npm run preview` |
+| Build + deploy to live Hosting | `npm run deploy` |
+| Build + deploy a temporary preview channel | `npm run deploy:preview` |
+
+---
+
+## Firebase Hosting
+
+Live site: **https://sipotem-app.web.app**
+
+Hosting serves the Vite build output from `dist/` (see `firebase.json`). Always build before deploy — or use the scripts above.
+
+### One-time CLI login (local deploys)
+
+```bash
+npx firebase login
+npx firebase use sipotem-app
+```
+
+### Deploy
+
+```bash
+# Production (live channel)
+npm run deploy
+
+# Named preview channel (expires in 7 days; prints a preview URL)
+npm run deploy:preview
+```
+
+Equivalent manual flow:
+
+```bash
+npm run build
+npx firebase deploy --only hosting
+```
+
+### GitHub Actions
+
+| Event | Workflow | Result |
+|-------|----------|--------|
+| Pull request | `firebase-hosting-pull-request.yml` | Preview channel + comment on the PR |
+| Push to `main` | `firebase-hosting-merge.yml` | Live channel (`https://sipotem-app.web.app`) |
+
+Required repository secrets:
+
+| Secret | Purpose |
+|--------|---------|
+| `FIREBASE_SERVICE_ACCOUNT_SIPOTEM_APP` | JSON service account with Hosting deploy access |
+| `VITE_API_BASE_URL` | Production API origin (baked into the build) |
+| `VITE_FIREBASE_API_KEY` | Same as local `.env` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Same as local `.env` |
+| `VITE_FIREBASE_PROJECT_ID` | Same as local `.env` |
+| `VITE_FIREBASE_APP_ID` | Same as local `.env` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Same as local `.env` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Same as local `.env` |
+
+Add the production admin origin to backend `CORS_ALLOWED_ORIGINS` and `ADMIN_ALLOWED_ORIGINS` (e.g. `https://sipotem-app.web.app`).
 
 ---
 
