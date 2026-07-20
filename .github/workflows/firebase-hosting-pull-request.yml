@@ -1,5 +1,5 @@
 # Preview channel deploy on every pull request
-# https://github.com/firebase/firebase-tools
+# VITE_* come from repository secrets (never from committed env files).
 
 name: Deploy to Firebase Hosting on PR
 on: pull_request

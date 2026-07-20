@@ -14,7 +14,7 @@ dist-ssr/
 *.local
 *.tsbuildinfo
 
-# Env / secrets (keep example committed)
+# Env — only .env.example is committed; real values stay local / in CI secrets
 .env
 .env.*
 !.env.example
@@ -51,10 +51,10 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Cursor
+# Cursor / local AI tooling (not part of the app)
 .cursor/
 .cursorrules
 .cursorignore
-
-# Local tooling
+.agents/
+skills-lock.json
 .tools/

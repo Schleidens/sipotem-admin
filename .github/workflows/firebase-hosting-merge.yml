@@ -1,5 +1,5 @@
 # Live deploy on merge to main
-# https://github.com/firebase/firebase-tools
+# VITE_* come from repository secrets (never from committed env files).
 
 name: Deploy to Firebase Hosting on merge
 on:

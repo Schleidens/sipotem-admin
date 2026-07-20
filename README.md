@@ -54,22 +54,30 @@ Add `http://localhost:5173` (and production admin origin) to backend `CORS_ALLOW
 ```bash
 cd admin-dashboard
 npm install
-cp .env.example .env
-# Fill VITE_* values (same Firebase web config as frontend, plus API base URL)
+cp .env.example .env.development
+# Fill VITE_* (same Firebase web config as frontend, plus local API URL)
 npm run dev
 ```
 
 Open the URL Vite prints (usually `http://localhost:5173`).
 
+For local production builds/deploys, also create `.env.production` from the example and set the live API URL.
+
 ---
 
 ## Environment variables
 
-Copy [`.env.example`](.env.example) → `.env`. Never commit `.env`.
+Real values are **never committed**. Only [`.env.example`](.env.example) is in git.
+
+| File | Used by | In git? |
+|------|---------|---------|
+| `.env.example` | Template | Yes |
+| `.env.development` | `npm run dev` | No |
+| `.env.production` | `npm run build` / `npm run deploy` | No |
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_API_BASE_URL` | Django origin, e.g. `http://127.0.0.1:8000` (no trailing slash) |
+| `VITE_API_BASE_URL` | Django origin, no trailing slash |
 | `VITE_FIREBASE_API_KEY` | Firebase web API key |
 | `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
 | `VITE_FIREBASE_PROJECT_ID` | Firebase project id |
@@ -92,6 +100,8 @@ Use the **same Firebase project** as `frontend/`. Do **not** put Firebase Admin 
 | Build + deploy to live Hosting | `npm run deploy` |
 | Build + deploy a temporary preview channel | `npm run deploy:preview` |
 
+Locally, `npm run build` / `npm run deploy` read **`.env.production`**. CI injects the same vars from GitHub Secrets.
+
 ---
 
 ## Firebase Hosting
@@ -107,21 +117,14 @@ npx firebase login
 npx firebase use sipotem-app
 ```
 
-### Deploy
+### Deploy (local)
+
+Requires a filled-in `.env.production` on your machine:
 
 ```bash
-# Production (live channel)
 npm run deploy
-
-# Named preview channel (expires in 7 days; prints a preview URL)
+# or a temporary preview channel
 npm run deploy:preview
-```
-
-Equivalent manual flow:
-
-```bash
-npm run build
-npx firebase deploy --only hosting
 ```
 
 ### GitHub Actions
@@ -131,18 +134,18 @@ npx firebase deploy --only hosting
 | Pull request | `firebase-hosting-pull-request.yml` | Preview channel + comment on the PR |
 | Push to `main` | `firebase-hosting-merge.yml` | Live channel (`https://sipotem-app.web.app`) |
 
-Required repository secrets:
+Required repository secrets (Settings → Secrets and variables → Actions):
 
 | Secret | Purpose |
 |--------|---------|
 | `FIREBASE_SERVICE_ACCOUNT_SIPOTEM_APP` | JSON service account with Hosting deploy access |
-| `VITE_API_BASE_URL` | Production API origin (baked into the build) |
-| `VITE_FIREBASE_API_KEY` | Same as local `.env` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Same as local `.env` |
-| `VITE_FIREBASE_PROJECT_ID` | Same as local `.env` |
-| `VITE_FIREBASE_APP_ID` | Same as local `.env` |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Same as local `.env` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Same as local `.env` |
+| `VITE_API_BASE_URL` | Production Django origin |
+| `VITE_FIREBASE_API_KEY` | Firebase web API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase project id |
+| `VITE_FIREBASE_APP_ID` | Firebase web app id |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Messaging sender id |
 
 Add the production admin origin to backend `CORS_ALLOWED_ORIGINS` and `ADMIN_ALLOWED_ORIGINS` (e.g. `https://sipotem-app.web.app`).
 
