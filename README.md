@@ -17,10 +17,12 @@ This app is the primary staff UI. It talks **only** to Django `/api/admin/` with
 | Layer | Choice |
 |-------|--------|
 | Language | TypeScript |
-| UI | React 19 |
+| UI | React 19 + Tailwind CSS 4 |
 | Bundler | Vite 8 |
+| Router | React Router 7 |
+| Charts | Recharts |
 | Package manager | Yarn |
-| Auth (planned) | Firebase Auth (same project as `frontend/`) |
+| Auth | Firebase Auth (same project as `frontend/`) |
 | API | Django REST `/api/admin/` |
 
 ---
@@ -32,15 +34,17 @@ This app is the primary staff UI. It talks **only** to Django `/api/admin/` with
 | Backend (API) | `../backend/` | `http://127.0.0.1:8000` |
 | Consumer app | `../frontend/` | `http://localhost:3000` |
 | Realtime | `../ms-realtime/` | `http://localhost:3001` |
-| **This admin SPA** | `.` | `http://localhost:5173` (Vite default) |
+| **This admin SPA** | `.` | `http://localhost:5173` |
+
+Add `http://localhost:5173` (and production admin origin) to backend `CORS_ALLOWED_ORIGINS` and `ADMIN_ALLOWED_ORIGINS`.
 
 ---
 
 ## Prerequisites
 
-- **Node.js** 20+ recommended
+- **Node.js** 20+ recommended (Yarn may need `--ignore-engines` on Node 18)
 - **Yarn**
-- Backend running locally (or a reachable API) with migrations applied
+- Backend running locally with migrations applied
 - A Firebase user that is staff in Django (`is_staff`); production also requires custom claim `admin: true` and MFA
 
 ---
@@ -73,7 +77,7 @@ Copy [`.env.example`](.env.example) → `.env`. Never commit `.env`.
 | `VITE_FIREBASE_STORAGE_BUCKET` | Storage bucket |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Messaging sender id |
 
-Use the **same Firebase project** as `frontend/`. Do **not** put Firebase Admin SDK private keys or service-account JSON in this repo.
+Use the **same Firebase project** as `frontend/`. Do **not** put Firebase Admin SDK private keys in this repo.
 
 ---
 
@@ -88,77 +92,87 @@ Use the **same Firebase project** as `frontend/`. Do **not** put Firebase Admin 
 
 ---
 
-## Authentication
+## Authentication & MFA
 
-1. Sign in with Firebase (same account system as the main app).
-2. Send `Authorization: Bearer <Firebase ID token>` on every `/api/admin/` request.
-3. Gate the UI with `GET /api/admin/me/` — this is the only admin endpoint that returns `is_staff` / `is_superuser`. If the user is not staff, do not render admin chrome.
+1. Sign in with Firebase (email/password or Google) — same accounts as the main app.
+2. If Firebase returns `auth/multi-factor-auth-required`, complete the TOTP authenticator challenge on the login screen.
+3. Send `Authorization: Bearer <Firebase ID token>` on every `/api/admin/` request (`X-Admin-Client: sipotem-admin` is also sent).
+4. Gate the UI with `GET /api/admin/me/` — the only admin endpoint that returns `is_staff` / `is_superuser`. Roles are stored **in memory** only (not long-lived token dumps in `localStorage`).
+5. **403** → Access Denied screen (not staff / missing `admin` claim / MFA / origin).
 
-**Production defaults (backend):** Firebase token + Django `is_staff` + custom claim `admin: true` + MFA + CORS allowlist via `ADMIN_ALLOWED_ORIGINS`. Mutations write append-only `AdminAuditLog` rows.
+### Production MFA (`ADMIN_REQUIRE_MFA=true`)
+
+When the backend requires MFA (default when `DEBUG=False`), the Firebase ID token must include a non-empty `firebase.sign_in_second_factor` list. Staff must enroll TOTP in the consumer app (or Firebase console) and complete MFA at admin login before any admin API calls succeed.
+
+When `ADMIN_REQUIRE_FIREBASE_CLAIM=true`, the token must also include custom claim `admin: true` (synced when promoting staff via `PATCH /api/admin/users/<id>/roles/`).
+
+---
+
+## Staff vs superuser (UI)
+
+| Capability | Staff | Superuser |
+|------------|-------|-----------|
+| Payouts, verification, users edit, catalog, rates, fundraisers, notifications | Yes | Yes |
+| User roles (`is_staff` / `is_superuser`) | No | Yes |
+| Overview money/wallet cards, money stats, money-by-user | Hidden | Shown |
+| Transaction volume averages | Hidden | Shown |
+| Audit logs | Own actions (`mine=1`) | All |
+
+UI guards are UX only; the API enforces real permissions.
 
 ---
 
 ## Admin API surface
 
-Full contract lives in [`../backend/README.md`](../backend/README.md) under **Admin API (`/api/admin/`)**. Summary:
+Full contract: [`../backend/README.md`](../backend/README.md) under **Admin API**. While backend `DEBUG=True`, Swagger at `{API}/api/docs/` (tag **Admin**) is the live contract if shapes drift.
 
-| Area | Paths | Notes |
-|------|-------|-------|
-| Session | `GET /api/admin/me/` | Roles for this staff user |
-| Users | `/api/admin/users/` … | List / detail / update |
-| Roles | `PATCH /api/admin/users/<id>/roles/` | Superuser only; syncs Firebase `admin` claim |
-| Badges | `/api/admin/users/<id>/badges/` | Award badges |
-| Verification | `/api/admin/verification-requests/` … | Approve / reject blue-check |
-| Payouts | `/api/admin/payment-requests/` … | Payout queue |
-| Rates | `/api/admin/exchange-rates/` … | HTG/USD |
-| Catalog | `/api/admin/categories/`, `profile-items/`, `badges/` | CRUD-ish catalog |
-| Fundraisers | `/api/admin/fundraisers/` … | Edit / suspend / close |
-| Ledger | `/api/admin/transactions/` … | Read-only |
-| Notifications | `/api/admin/notifications/` | Broadcast or staff DM |
-| Audit | `/api/admin/audit-logs/` | Staff: own actions; superuser: all |
-
-By design, this SPA should not call consumer routes (`/api/users/`, tip flows, etc.).
+| Area | Paths |
+|------|-------|
+| Session | `GET /api/admin/me/` |
+| Users / roles / badges | `/api/admin/users/…` |
+| Verification | `/api/admin/verification-requests/…` |
+| Payouts | `/api/admin/payment-requests/…` |
+| Rates | `/api/admin/exchange-rates/…` |
+| Catalog | `/api/admin/categories/`, `profile-items/`, `badges/` |
+| Fundraisers | `/api/admin/fundraisers/…` |
+| Transactions | `/api/admin/transactions/…` (read-only) |
+| Notifications | `/api/admin/notifications/` |
+| Audit | `/api/admin/audit-logs/` |
+| Stats | `/api/admin/stats/…` |
 
 ---
 
-## Repository layout
+## Acceptance checklist
 
-```
-admin-dashboard/
-├── public/           # Static assets (favicon)
-├── src/
-│   ├── App.tsx       # App shell (features TBD)
-│   ├── main.tsx      # Vite entry
-│   ├── App.css
-│   └── index.css
-├── .env.example
-├── index.html
-├── package.json
-├── vite.config.ts
-└── README.md
-```
+- [ ] Login → `/api/admin/me/` gate → Access Denied for non-staff
+- [ ] Staff can run payouts + verification + catalogs; cannot open money stats or roles
+- [ ] Superuser sees money dashboard, money-by-user, roles, full audit
+- [ ] List filters and pagination work
+- [ ] Approve payout / verify user show success toasts (backend side effects)
+- [ ] No role fields from consumer `/api/users/me/`
+- [ ] Tokens not logged; MFA flow works in production
+- [ ] Admin origin in `CORS_ALLOWED_ORIGINS` + `ADMIN_ALLOWED_ORIGINS`
+- [ ] Empty states, loading, error toasts on screens
+- [ ] Tables usable on mobile (horizontal scroll)
 
 ---
 
 ## Security notes
 
 - Never commit `.env`, Firebase Admin credentials, or service-account JSON.
-- Staff UI origin must be listed in backend `ADMIN_ALLOWED_ORIGINS` in production.
-- Prefer least privilege: only superusers should hit role-mutation endpoints.
-- Treat audit logs as append-only; do not invent client-side “undo” of staff actions.
+- Prefer least privilege: only superusers hit role-mutation and platform money endpoints.
+- Treat audit logs as append-only; do not invent client-side “undo”.
 
 ---
 
-## First-day checklist
+## Source layout
 
-1. `yarn` and copy `.env.example` → `.env`
-2. Start backend (`../backend/`) on `:8000`
-3. Confirm you have a staff Firebase user (Django `is_staff`)
-4. `yarn dev` and open the Vite URL
-5. Next implementation step: Firebase client + `GET /api/admin/me/` gate, then feature screens
-
----
-
-## Current status
-
-Scaffold only: Vite + React + TypeScript toolchain with a minimal placeholder shell. Auth, routing, and admin feature screens are not implemented yet.
+```
+src/
+  api/           # adminClient + domain modules
+  auth/          # Firebase, MFA, RequireStaff/Superuser
+  components/    # UI primitives, shell, shared
+  pages/         # One screen per admin area
+  constants/     # Enums
+  types/         # API types
+```

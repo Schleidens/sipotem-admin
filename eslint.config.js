@@ -18,5 +18,13 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Data fetching in effects is intentional for this SPA.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true, allowExportNames: ['useAuth', 'useToast'] },
+      ],
+    },
   },
 ])
