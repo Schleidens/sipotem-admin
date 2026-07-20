@@ -155,7 +155,7 @@ Add the production admin origin to backend `CORS_ALLOWED_ORIGINS` and `ADMIN_ALL
 
 1. Sign in with Firebase (email/password or Google) — same accounts as the main app.
 2. If Firebase returns `auth/multi-factor-auth-required`, complete the TOTP authenticator challenge on the login screen.
-3. Send `Authorization: Bearer <Firebase ID token>` on every `/api/admin/` request (`X-Admin-Client: sipotem-admin` is also sent).
+3. Send `Authorization: Bearer <Firebase ID token>` on every `/api/admin/` request.
 4. Gate the UI with `GET /api/admin/me/` — the only admin endpoint that returns `is_staff` / `is_superuser`. Roles are stored **in memory** only (not long-lived token dumps in `localStorage`).
 5. **403** → Access Denied screen (not staff / missing `admin` claim / MFA / origin).
 

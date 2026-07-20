@@ -95,7 +95,6 @@ export async function adminRequest<T>(path: string, options: AdminRequestOptions
   const token = tokenGetter ? await tokenGetter() : null
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    'X-Admin-Client': 'sipotem-admin',
   }
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
