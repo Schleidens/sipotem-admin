@@ -11,7 +11,7 @@ function getFirebaseConfig() {
 
   if (!apiKey || !authDomain || !projectId || !appId) {
     throw new Error(
-      'Firebase env vars missing. Copy .env.example → .env and set VITE_FIREBASE_* values.',
+      'Firebase env vars missing. Copy .env.example → .env.development (dev) or .env.production (build).',
     )
   }
 
